@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StyleCo — Founder Intelligence Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #1a1a2e;
+    --ink-light: #3d3d5c;
+    --bg: #f7f5f0;
+    --card: #ffffff;
+    --accent: #e63946;
+    --accent2: #457b9d;
+    --accent3: #2a9d8f;
+    --accent4: #e9c46a;
+    --muted: #8a8a9a;
+    --border: #e5e3de;
+    --premium: #e63946;
+    --high: #457b9d;
+    --medium: #2a9d8f;
+    --low: #ccc;
+    --font-display: 'Georgia', serif;
+    --font-body: 'Helvetica Neue', Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: var(--font-body); color: var(--ink); min-height: 100vh; }
+
+  header {
+    background: var(--ink);
+    color: white;
+    padding: 24px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 3px solid var(--accent);
+  }
+  header h1 { font-family: var(--font-display); font-size: 22px; font-weight: normal; letter-spacing: 0.5px; }
+  header .subtitle { font-size: 12px; color: #aaa; margin-top: 4px; letter-spacing: 1px; text-transform: uppercase; }
+  header .date { font-size: 13px; color: #ccc; }
+
+  .kpi-strip {
+    display: flex; gap: 0; background: var(--ink-light);
+    border-bottom: 1px solid #333;
+  }
+  .kpi-item {
+    flex: 1; padding: 16px 24px;
+    border-right: 1px solid #444;
+    text-align: center;
+  }
+  .kpi-item:last-child { border-right: none; }
+  .kpi-val { font-size: 28px; font-weight: 700; color: white; font-family: var(--font-display); }
+  .kpi-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .kpi-delta { font-size: 12px; color: var(--accent3); margin-top: 2px; }
+
+  .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 28px 32px; }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+    position: relative;
+  }
+  .panel-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 2px;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  .panel-title {
+    font-family: var(--font-display); font-size: 18px;
+    color: var(--ink); margin-bottom: 4px;
+  }
+  .panel-desc { font-size: 12px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+  .panel-accent { width: 32px; height: 3px; background: var(--accent); margin-bottom: 16px; }
+
+  /* Panel 1: Pyramid */
+  .pyramid-wrap { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+  .pyramid-row { display: flex; align-items: center; gap: 12px; }
+  .pyramid-bar-wrap { flex: 1; background: #f0ede8; border-radius: 2px; height: 38px; position: relative; overflow: hidden; }
+  .pyramid-bar { height: 100%; display: flex; align-items: center; padding-left: 12px; font-size: 13px; color: white; font-weight: 600; border-radius: 2px; transition: width 0.8s ease; }
+  .pyramid-tier { width: 72px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+  .pyramid-meta { width: 110px; text-align: right; font-size: 11px; color: var(--muted); }
+  .tier-premium .pyramid-bar { background: var(--premium); }
+  .tier-high .pyramid-bar { background: var(--high); }
+  .tier-medium .pyramid-bar { background: var(--accent3); }
+  .tier-low .pyramid-bar { background: #bbb; }
+  .tier-premium .pyramid-tier { color: var(--premium); }
+  .tier-high .pyramid-tier { color: var(--high); }
+  .tier-medium .pyramid-tier { color: var(--accent3); }
+  .tier-low .pyramid-tier { color: #999; }
+
+  /* Insight callout */
+  .insight-box {
+    margin-top: 16px; padding: 12px 14px;
+    background: #fef8f0; border-left: 3px solid var(--accent4);
+    font-size: 12px; color: var(--ink-light); line-height: 1.5;
+  }
+  .insight-box strong { color: var(--ink); }
+
+  /* Panel 2: Promo vs Retention */
+  .seg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px; }
+  .seg-card {
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 14px; position: relative;
+  }
+  .seg-name { font-size: 12px; font-weight: 700; margin-bottom: 10px; }
+  .seg-count { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  .seg-bar-row { margin-bottom: 6px; }
+  .seg-bar-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; display: flex; justify-content: space-between; }
+  .seg-bar-track { background: #f0ede8; height: 8px; border-radius: 2px; }
+  .seg-bar-fill { height: 100%; border-radius: 2px; }
+  .seg-tag {
+    display: inline-block; padding: 2px 7px; border-radius: 10px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .tag-loyal { background: #e8f5e9; color: #2e7d32; }
+  .tag-casual { background: #fff3e0; color: #e65100; }
+  .tag-promo { background: #fce4ec; color: #c62828; }
+  .tag-organic { background: #e3f2fd; color: #1565c0; }
+  .rev-big { font-size: 20px; font-weight: 700; font-family: var(--font-display); margin-top: 6px; }
+
+  /* Panel 3: Geo */
+  .geo-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .geo-row { display: flex; align-items: center; gap: 10px; }
+  .geo-rank { width: 22px; font-size: 11px; color: var(--muted); font-weight: 700; }
+  .geo-name { width: 100px; font-size: 13px; font-weight: 600; }
+  .geo-track { flex: 1; background: #f0ede8; height: 10px; border-radius: 2px; position: relative; overflow: hidden; }
+  .geo-fill-organic { height: 100%; background: var(--accent3); border-radius: 2px; }
+  .geo-score { width: 44px; text-align: right; font-size: 12px; color: var(--ink); font-weight: 600; }
+  .geo-organic-pct { width: 48px; text-align: right; font-size: 11px; color: var(--muted); }
+  .geo-legend { display: flex; gap: 16px; margin-top: 12px; font-size: 11px; color: var(--muted); }
+  .geo-legend span { display: flex; align-items: center; gap: 5px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  /* Panel 4: Category funnel */
+  .cat-funnel { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+  .cat-row { border: 1px solid var(--border); border-radius: 4px; padding: 12px 14px; }
+  .cat-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .cat-name { font-size: 14px; font-weight: 700; }
+  .cat-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+  .badge-entry { background: #fff3e0; color: #bf360c; }
+  .badge-retain { background: #e8f5e9; color: #1b5e20; }
+  .cat-metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .cat-metric { text-align: center; }
+  .cat-metric-val { font-size: 15px; font-weight: 700; }
+  .cat-metric-lab { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; }
+  .cat-promo-bar { margin-top: 8px; }
+
+  footer { text-align: center; padding: 20px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>StyleCo — Customer Intelligence Dashboard</h1>
+    <div class="subtitle">Founder Intelligence · D2C Fashion · United States</div>
+  </div>
+  <div class="date">Summer 2026 · 3,900 Customers</div>
+</header>
+
+<div class="kpi-strip">
+  <div class="kpi-item">
+    <div class="kpi-val">3,900</div>
+    <div class="kpi-label">Total Customers</div>
+  </div>
+  <div class="kpi-item">
+    <div class="kpi-val">$1,039</div>
+    <div class="kpi-label">Avg Annual Revenue / Customer</div>
+  </div>
+  <div class="kpi-item">
+    <div class="kpi-val">57%</div>
+    <div class="kpi-label">Organic Buyers (No Promo)</div>
+    <div class="kpi-delta">↑ Genuine Brand Pull</div>
+  </div>
+  <div class="kpi-item">
+    <div class="kpi-val">43%</div>
+    <div class="kpi-label">Promo-Dependent Buyers</div>
+  </div>
+  <div class="kpi-item">
+    <div class="kpi-val">362</div>
+    <div class="kpi-label">At-Risk Customers</div>
+    <div class="kpi-delta">Low sat. + high promo + low freq.</div>
+  </div>
+  <div class="kpi-item">
+    <div class="kpi-val">$59.76</div>
+    <div class="kpi-label">Avg Transaction Value</div>
+  </div>
+</div>
+
+<div class="dashboard">
+
+  <!-- PANEL 1: Customer Pyramid -->
+  <div class="panel">
+    <div class="panel-label">Panel 01</div>
+    <div class="panel-title">Customer Value Pyramid</div>
+    <div class="panel-accent"></div>
+    <div class="panel-desc">Value tiers based on estimated annual revenue (spend × purchase frequency). Width = share of customer base. The pyramid is unusually flat — a critical finding.</div>
+
+    <div class="pyramid-wrap">
+      <div class="pyramid-row tier-premium">
+        <div class="pyramid-tier">Premium</div>
+        <div class="pyramid-bar-wrap">
+          <div class="pyramid-bar" style="width:100%">972 customers · $2,712/yr avg</div>
+        </div>
+        <div class="pyramid-meta">$2.64M est. annual</div>
+      </div>
+      <div class="pyramid-row tier-high">
+        <div class="pyramid-tier">High</div>
+        <div class="pyramid-bar-wrap">
+          <div class="pyramid-bar" style="width:82%">969 customers · $1,034/yr avg</div>
+        </div>
+        <div class="pyramid-meta">$1.00M est. annual</div>
+      </div>
+      <div class="pyramid-row tier-medium">
+        <div class="pyramid-tier">Medium</div>
+        <div class="pyramid-bar-wrap">
+          <div class="pyramid-bar" style="width:58%">978 customers · $332/yr avg</div>
+        </div>
+        <div class="pyramid-meta">$325K est. annual</div>
+      </div>
+      <div class="pyramid-row tier-low">
+        <div class="pyramid-tier">Low</div>
+        <div class="pyramid-bar-wrap">
+          <div class="pyramid-bar" style="width:38%">981 customers · $90/yr avg</div>
+        </div>
+        <div class="pyramid-meta">$88K est. annual</div>
+      </div>
+    </div>
+
+    <div class="insight-box">
+      <strong>Key signal:</strong> Premium vs. Low tiers have nearly identical customer counts (972 vs 981) but 30× revenue difference. The value driver is <em>frequency</em>, not ticket size. Premium customers average 38 purchases/year; Low customers average 2.
+    </div>
+  </div>
+
+  <!-- PANEL 2: Promo Dependency vs Retention -->
+  <div class="panel">
+    <div class="panel-label">Panel 02</div>
+    <div class="panel-title">Promo Dependency vs. Retention Behavior</div>
+    <div class="panel-accent"></div>
+    <div class="panel-desc">Four customer archetypes by behavioral loyalty (purchase history + frequency) and discount usage. Segment size, revenue, and repeat purchase depth shown.</div>
+
+    <div class="seg-grid">
+
+      <div class="seg-card" style="border-top: 3px solid #2e7d32;">
+        <div class="seg-tag tag-loyal tag-organic">Loyal Organic</div>
+        <div class="seg-count">943 customers</div>
+        <div class="seg-bar-row">
+          <div class="seg-bar-label"><span>Promo Use</span><span>0%</span></div>
+          <div class="seg-bar-track"><div class="seg-bar-fill" style="width:0%;background:#e63946;"></div></div>
+        </div>
+        <div class="seg-bar-row">
+          <div class="seg-bar-label"><span>Repeat Purchases</span><span>36.8 avg</span></div>
+          <div class="seg-bar-track"><div class="seg-bar-fill" style="width:74%;background:#2a9d8f;"></div></div>
+        </div>
+        <div class="rev-big" style="color:#2e7d32;">$1,541<span style="font-size:12px;font-weight:400;color:#999;"> /yr</span></div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">🏆 Most valuable. No discount needed.</div>
+      </div>
+
+      <div class="seg-card" style="border-top: 3px solid #1565c0;">
+        <div class="seg-tag tag-loyal tag-promo">Loyal Promo-Driven</div>
+        <div class="seg-count">1,012 customers</div>
+        <div class="seg-bar-row">
+          <div class="seg-bar-label"><span>Promo Use</span><span>100%</span></div>
+          <div class="seg-bar-track"><div class="seg-bar-fill" style="width:100%;background:#e63946;"></div></div>
+        </div>
+        <div class="seg-bar-row">
+          <div class="seg-bar-label"><span>Repeat Purchases</span><span>33.7 avg</span></div>
+          <div class="seg-bar-track"><div class="seg-bar-fill" style="width:67%;background:#457b9d;"></div></div>
+        </div>
+        <div class="rev-big" style="color:#1565c0;">$1,338<span style="font-size:12px;font-weight:400;color:#999;"> /yr</span></div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">⚠️ High value but margin risk. Target for sunset.</div>
+      </div>
+
+      <div class="seg-card" style="border-top: 3px solid #e65100;">
+        <div class="seg-tag tag-casual tag-organic">Casual Organic</div>
+        <div class="seg-count">1,280 customers</div>
+        <div class="seg-bar-row">
+          <div class="seg-bar-label"><span>Promo Use</span><span>0%</span></div>
+          <div class="seg-bar-track"><div class="seg-bar-fill" style="width:0%;background:#e63946;"></div></div>
+        </div>
+        <div class="seg-bar-row">
+          <div class="seg-bar-label"><span>Repeat Purchases</span><span>16.4 avg</span></div>
+          <div class="seg-bar-track"><div class="seg-bar-fill" style="width:33%;background:#e9c46a;"></div></div>
+        </div>
+        <div class="rev-big" style="color:#e65100;">$674<span style="font-size:12px;font-weight:400;color:#999;"> /yr</span></div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">🌱 Growth opportunity. No promo needed to convert.</div>
+      </div>
+
+      <div class="seg-card" style="border-top: 3px solid #c62828;">
+        <div class="seg-tag tag-casual tag-promo">Casual Promo-Driven</div>
+        <div class="seg-count">665 customers</div>
+        <div class="seg-bar-row">
+          <div class="seg-bar-label"><span>Promo Use</span><span>100%</span></div>
+          <div class="seg-bar-track"><div class="seg-bar-fill" style="width:100%;background:#e63946;"></div></div>
+        </div>
+        <div class="seg-bar-row">
+          <div class="seg-bar-label"><span>Repeat Purchases</span><span>13.6 avg</span></div>
+          <div class="seg-bar-track"><div class="seg-bar-fill" style="width:27%;background:#ccc;"></div></div>
+        </div>
+        <div class="rev-big" style="color:#c62828;">$575<span style="font-size:12px;font-weight:400;color:#999;"> /yr</span></div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">🚨 Lowest value. Bargain hunters. Deprioritize.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PANEL 3: Geographic Opportunity Map -->
+  <div class="panel">
+    <div class="panel-label">Panel 03</div>
+    <div class="panel-title">Geographic Opportunity Map</div>
+    <div class="panel-accent"></div>
+    <div class="panel-desc">Ranked by Organic Revenue Index = % organic buyers × avg annual revenue. High score = genuine brand pull, not discount-driven volume. Bar width = organic revenue index (max 801).</div>
+
+    <div class="geo-list">
+      <div style="display:flex;gap:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;padding:0 4px;">
+        <div style="width:22px;">#</div>
+        <div style="width:100px;">State</div>
+        <div style="flex:1;">Organic Revenue Index ←</div>
+        <div style="width:44px;text-align:right;">Score</div>
+        <div style="width:48px;text-align:right;">Org%</div>
+      </div>
+      <div class="geo-row"><div class="geo-rank">1</div><div class="geo-name">Tennessee</div><div class="geo-track"><div class="geo-fill-organic" style="width:100%"></div></div><div class="geo-score">801</div><div class="geo-organic-pct" style="color:#2a9d8f;font-weight:700;">63.6%</div></div>
+      <div class="geo-row"><div class="geo-rank">2</div><div class="geo-name">Illinois</div><div class="geo-track"><div class="geo-fill-organic" style="width:95%"></div></div><div class="geo-score">759</div><div class="geo-organic-pct">59.8%</div></div>
+      <div class="geo-row"><div class="geo-rank">3</div><div class="geo-name">Alaska</div><div class="geo-track"><div class="geo-fill-organic" style="width:94%"></div></div><div class="geo-score">754</div><div class="geo-organic-pct">59.7%</div></div>
+      <div class="geo-row"><div class="geo-rank">4</div><div class="geo-name">Arizona</div><div class="geo-track"><div class="geo-fill-organic" style="width:92%"></div></div><div class="geo-score">733</div><div class="geo-organic-pct" style="color:#2a9d8f;font-weight:700;">66.2%</div></div>
+      <div class="geo-row"><div class="geo-rank">5</div><div class="geo-name">Pennsylvania</div><div class="geo-track"><div class="geo-fill-organic" style="width:91%"></div></div><div class="geo-score">731</div><div class="geo-organic-pct">55.4%</div></div>
+      <div class="geo-row"><div class="geo-rank">6</div><div class="geo-name">Louisiana</div><div class="geo-track"><div class="geo-fill-organic" style="width:91%"></div></div><div class="geo-score">726</div><div class="geo-organic-pct">58.3%</div></div>
+      <div class="geo-row"><div class="geo-rank">7</div><div class="geo-name">Georgia</div><div class="geo-track"><div class="geo-fill-organic" style="width:90%"></div></div><div class="geo-score">721</div><div class="geo-organic-pct">59.5%</div></div>
+      <div class="geo-row"><div class="geo-rank">8</div><div class="geo-name">Virginia</div><div class="geo-track"><div class="geo-fill-organic" style="width:86%"></div></div><div class="geo-score">690</div><div class="geo-organic-pct">62.3%</div></div>
+      <div class="geo-row"><div class="geo-rank">9</div><div class="geo-name">Kansas</div><div class="geo-track"><div class="geo-fill-organic" style="width:81%"></div></div><div class="geo-score">651</div><div class="geo-organic-pct" style="color:#2a9d8f;font-weight:700;">76.2%</div></div>
+      <div class="geo-row"><div class="geo-rank">10</div><div class="geo-name">New York</div><div class="geo-track"><div class="geo-fill-organic" style="width:85%"></div></div><div class="geo-score">680</div><div class="geo-organic-pct">58.6%</div></div>
+    </div>
+
+    <div class="insight-box" style="margin-top:12px;">
+      <strong>Standout:</strong> Kansas has the highest organic buyer rate (76.2%) in the dataset with low promo dependency (0.48) — the brand has untapped genuine traction there. Tennessee and Arizona both combine high organic rates with strong revenue. These three are priority expansion markets.
+    </div>
+  </div>
+
+  <!-- PANEL 4: Category Funnel -->
+  <div class="panel">
+    <div class="panel-label">Panel 04</div>
+    <div class="panel-title">Category Funnel — Entry vs. Retention</div>
+    <div class="panel-accent"></div>
+    <div class="panel-desc">Avg previous purchases = proxy for customer tenure at time of category purchase. Higher = bought by loyal customers. Promo % = how discount-dependent each category's buyers are.</div>
+
+    <div class="cat-funnel">
+
+      <div class="cat-row">
+        <div class="cat-top">
+          <div class="cat-name">👗 Clothing</div>
+          <div class="cat-badge badge-retain">Retention Category</div>
+        </div>
+        <div class="cat-metrics">
+          <div class="cat-metric">
+            <div class="cat-metric-val" style="color:#2a9d8f;">25.2</div>
+            <div class="cat-metric-lab">Avg Prior Purchases</div>
+          </div>
+          <div class="cat-metric">
+            <div class="cat-metric-val">1,737</div>
+            <div class="cat-metric-lab">Customers</div>
+          </div>
+          <div class="cat-metric">
+            <div class="cat-metric-val">$60.03</div>
+            <div class="cat-metric-lab">Avg Spend</div>
+          </div>
+        </div>
+        <div class="cat-promo-bar">
+          <div class="seg-bar-label"><span style="font-size:10px;color:#999;">Promo Rate</span><span style="font-size:10px;color:#999;">42.1%</span></div>
+          <div class="seg-bar-track"><div class="seg-bar-fill" style="width:42%;background:#e63946;"></div></div>
+        </div>
+      </div>
+
+      <div class="cat-row">
+        <div class="cat-top">
+          <div class="cat-name">👜 Accessories</div>
+          <div class="cat-badge badge-retain">Retention Category</div>
+        </div>
+        <div class="cat-metrics">
+          <div class="cat-metric">
+            <div class="cat-metric-val" style="color:#2a9d8f;">25.7</div>
+            <div class="cat-metric-lab">Avg Prior Purchases</div>
+          </div>
+          <div class="cat-metric">
+            <div class="cat-metric-val">1,240</div>
+            <div class="cat-metric-lab">Customers</div>
+          </div>
+          <div class="cat-metric">
+            <div class="cat-metric-val">$59.84</div>
+            <div class="cat-metric-lab">Avg Spend</div>
+          </div>
+        </div>
+        <div class="cat-promo-bar">
+          <div class="seg-bar-label"><span style="font-size:10px;color:#999;">Promo Rate</span><span style="font-size:10px;color:#999;">43.8%</span></div>
+          <div class="seg-bar-track"><div class="seg-bar-fill" style="width:44%;background:#e63946;"></div></div>
+        </div>
+      </div>
+
+      <div class="cat-row">
+        <div class="cat-top">
+          <div class="cat-name">👟 Footwear</div>
+          <div class="cat-badge badge-entry">Entry Point Category</div>
+        </div>
+        <div class="cat-metrics">
+          <div class="cat-metric">
+            <div class="cat-metric-val" style="color:#e65100;">25.2</div>
+            <div class="cat-metric-lab">Avg Prior Purchases</div>
+          </div>
+          <div class="cat-metric">
+            <div class="cat-metric-val">599</div>
+            <div class="cat-metric-lab">Customers</div>
+          </div>
+          <div class="cat-metric">
+            <div class="cat-metric-val">$60.26</div>
+            <div class="cat-metric-lab">Avg Spend</div>
+          </div>
+        </div>
+        <div class="cat-promo-bar">
+          <div class="seg-bar-label"><span style="font-size:10px;color:#999;">Promo Rate</span><span style="font-size:10px;color:#999;">43.2%</span></div>
+          <div class="seg-bar-track"><div class="seg-bar-fill" style="width:43%;background:#e9c46a;"></div></div>
+        </div>
+      </div>
+
+      <div class="cat-row">
+        <div class="cat-top">
+          <div class="cat-name">🧥 Outerwear</div>
+          <div class="cat-badge badge-entry">Entry Point Category</div>
+        </div>
+        <div class="cat-metrics">
+          <div class="cat-metric">
+            <div class="cat-metric-val" style="color:#e65100;">25.0</div>
+            <div class="cat-metric-lab">Avg Prior Purchases</div>
+          </div>
+          <div class="cat-metric">
+            <div class="cat-metric-val">324</div>
+            <div class="cat-metric-lab">Customers</div>
+          </div>
+          <div class="cat-metric">
+            <div class="cat-metric-val">$57.17</div>
+            <div class="cat-metric-lab">Avg Spend</div>
+          </div>
+        </div>
+        <div class="cat-promo-bar">
+          <div class="seg-bar-label"><span style="font-size:10px;color:#999;">Promo Rate</span><span style="font-size:10px;color:#999;">44.4% — Highest</span></div>
+          <div class="seg-bar-track"><div class="seg-bar-fill" style="width:44%;background:#e63946;"></div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="insight-box">
+      <strong>Note:</strong> Differences in avg. prior purchases are modest across categories (25.0–25.7), suggesting the brand does not yet have a clear entry/retention pathway. Outerwear has the highest promo dependency and lowest avg spend — likely a seasonal acquisition tool rather than a loyalty driver.
+    </div>
+  </div>
+
+</div>
+
+<footer>StyleCo Customer Intelligence Dashboard · Consulting & Analytics Club IIT Guwahati · Summer Projects '26 · Data: 3,900 US Customers</footer>
+
+</body>
+</html>
